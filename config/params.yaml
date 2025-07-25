@@ -1,6 +1,6 @@
 simple_inference_node:
   ros__parameters:
-    interval_ms: 100
+    interval_ms: 50
     model_name: "simple_imitation_model.pt"
     max_linear_vel: 3.0
     max_angular_vel: 1.57
