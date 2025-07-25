@@ -55,7 +55,7 @@ class Config:
         self.shift_signs = config.get('shift_signs', [-2.0, -1.0, 0.0, 1.0, 2.0])
         self.vel_offset = config.get('vel_offset', 0.2)
         
-        self.enable_projection_transform = config.get('enable_projection_transform', False)
+        self.enable_projection_transform = config.get('enable_projection_transform', True)
         self.projection_signs = config.get('projection_signs', [0.0])
         self.projection_offset = config.get('projection_offset', 0.2)
         
@@ -241,7 +241,7 @@ def main():
     
     dataset = DatasetLoader(
         dataset_dir=webdataset_dir,
-        input_size=(48, 64),
+        input_size=(66, 200),
         visualize_dir=visualize_dir,
         shift_signs=config.shift_signs if config.enable_horizontal_shift else [0.0],
         vel_offset=config.vel_offset,

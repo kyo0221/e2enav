@@ -4,6 +4,6 @@ simple_inference_node:
     model_name: "simple_imitation_model.pt"
     max_linear_vel: 3.0
     max_angular_vel: 1.57
-    image_width: 64
-    image_height: 48
+    image_width: 200
+    image_height: 66
     visualize_flag: true

@@ -11,19 +11,32 @@ class Network(nn.Module):
     def __init__(self, input_channels=3):
         super(Network, self).__init__()
         
-        self.conv1 = nn.Conv2d(input_channels, 32, kernel_size=8, stride=4)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2)
-        self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
-        self.fc1 = nn.Linear(960, 512)
-        self.fc2 = nn.Linear(512, 1)
+        self.conv1 = nn.Conv2d(input_channels, 24, kernel_size=5, stride=2)
+        self.conv2 = nn.Conv2d(24, 36, kernel_size=5, stride=2)
+        self.conv3 = nn.Conv2d(36, 48, kernel_size=5, stride=2)
+        self.conv4 = nn.Conv2d(48, 64, kernel_size=3, stride=1)
+        self.conv5 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
+        
+        self.fc1 = nn.Linear(1152, 1164)
+        self.fc2 = nn.Linear(1164, 100)
+        self.fc3 = nn.Linear(100, 50)
+        self.fc4 = nn.Linear(50, 10)
+        self.fc5 = nn.Linear(10, 1)
+        
         self.relu = nn.ReLU(inplace=True)
         self.flatten = nn.Flatten()
+        self.dropout = nn.Dropout(0.5)
 
         torch.nn.init.kaiming_normal_(self.conv1.weight)
         torch.nn.init.kaiming_normal_(self.conv2.weight)
         torch.nn.init.kaiming_normal_(self.conv3.weight)
+        torch.nn.init.kaiming_normal_(self.conv4.weight)
+        torch.nn.init.kaiming_normal_(self.conv5.weight)
         torch.nn.init.kaiming_normal_(self.fc1.weight)
         torch.nn.init.kaiming_normal_(self.fc2.weight)
+        torch.nn.init.kaiming_normal_(self.fc3.weight)
+        torch.nn.init.kaiming_normal_(self.fc4.weight)
+        torch.nn.init.kaiming_normal_(self.fc5.weight)
 
         self.cnn_layer = nn.Sequential(
             self.conv1,
@@ -32,13 +45,27 @@ class Network(nn.Module):
             self.relu,
             self.conv3,
             self.relu,
+            self.conv4,
+            self.relu,
+            self.conv5,
+            self.relu,
             self.flatten
         )
 
         self.fc_layer = nn.Sequential(
             self.fc1,
             self.relu,
+            self.dropout,
             self.fc2,
+            self.relu,
+            self.dropout,
+            self.fc3,
+            self.relu,
+            self.dropout,
+            self.fc4,
+            self.relu,
+            self.dropout,
+            self.fc5
         )
     
     def forward(self, x):
@@ -46,7 +73,7 @@ class Network(nn.Module):
         x = self.fc_layer(x)
         return x
     
-    def save_torchscript(self, model_path, input_size=(3, 48, 64)):
+    def save_torchscript(self, model_path, input_size=(3, 66, 200)):
         self.eval()
         dummy_input = torch.randn(1, *input_size)
         traced_model = torch.jit.trace(self, dummy_input)
@@ -65,7 +92,7 @@ class Network(nn.Module):
         return model
     
     @staticmethod
-    def preprocess_image(image, target_size=(64, 48)):
+    def preprocess_image(image, target_size=(200, 66)):
 
         if isinstance(image, np.ndarray):
             resized = cv2.resize(image, target_size)
@@ -90,7 +117,7 @@ if __name__ == "__main__":
     
     model = create_model()
     
-    dummy_input = torch.randn(1, 3, 48, 64)
+    dummy_input = torch.randn(1, 3, 66, 200)
     output = model(dummy_input)
     
     print(f"Input shape: {dummy_input.shape}")

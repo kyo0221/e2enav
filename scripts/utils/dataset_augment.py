@@ -91,18 +91,7 @@ class DatasetAugmenter:
                                    borderMode=cv2.BORDER_CONSTANT, 
                                    borderValue=(0, 0, 0))
         
-        mask = np.any(warped != 0, axis=2)
-        coords = np.column_stack(np.where(mask))
-        
-        if len(coords) == 0:
-            return img
-        
-        y_min, x_min = coords.min(axis=0)
-        y_max, x_max = coords.max(axis=0)
-        
-        valid_region = warped[y_min:y_max+1, x_min:x_max+1]
-        
-        return cv2.resize(valid_region, (w, h))
+        return warped
     
     def get_augmentation_info(self):
         return {
