@@ -55,6 +55,10 @@ class Config:
         self.shift_signs = config.get('shift_signs', [-2.0, -1.0, 0.0, 1.0, 2.0])
         self.vel_offset = config.get('vel_offset', 0.2)
         
+        self.enable_projection_transform = config.get('enable_projection_transform', False)
+        self.projection_signs = config.get('projection_signs', [0.0])
+        self.projection_offset = config.get('projection_offset', 0.2)
+        
         print(f"Training configuration loaded from: {config_path}")
         print(f"Results will be saved to: {self.result_dir}")
         print(f"Models will be saved to: {self.model_dir}")
@@ -93,7 +97,7 @@ class Trainer:
         scaler = GradScaler()
         torch.backends.cudnn.benchmark = True
         
-        print("🚀 Starting training...")
+        print("Starting training...")
         
         for epoch in range(self.config.epochs):
             epoch_loss = 0.0
@@ -141,7 +145,7 @@ class Trainer:
         self.save_results()
         self.writer.close()
         
-        print("🎉 Training completed!")
+        print("Training completed!")
     
     def save_intermediate_model(self, epoch):
         self.model.eval()
@@ -155,7 +159,7 @@ class Trainer:
         model_path = os.path.join(self.config.model_dir, intermediate_filename)
         
         traced_model.save(model_path)
-        print(f"🐜 中間モデルを保存しました: {model_path}")
+        print(f"Intermediate model saved: {model_path}")
         
         self.model.train()
     
@@ -167,7 +171,7 @@ class Trainer:
         
         model_path = os.path.join(self.config.model_dir, self.config.model_filename)
         traced_model.save(model_path)
-        print(f"🎯 最終モデルを保存しました: {model_path}")
+        print(f"Final model saved: {model_path}")
         
         plt.figure(figsize=(12, 4))
         
@@ -189,7 +193,7 @@ class Trainer:
         plt.tight_layout()
         plt.savefig(loss_curve_path)
         plt.close()
-        print(f"📈 学習曲線を保存しました: {loss_curve_path}")
+        print(f"Loss curves saved: {loss_curve_path}")
         stats = {
             "final_loss": float(self.epoch_losses[-1]),
             "min_loss": float(np.min(self.epoch_losses)),
@@ -209,14 +213,15 @@ class Trainer:
         stats_path = os.path.join(self.config.result_dir, 'training_stats.json')
         with open(stats_path, 'w') as f:
             json.dump(stats, f, indent=2)
-        print(f"📉 訓練統計を保存しました: {stats_path}")
+        print(f"Training stats saved: {stats_path}")
 
 
 def main():
     parser = argparse.ArgumentParser(description='Train simple imitation learning model')
     parser.add_argument('dataset', type=str, help='Path to dataset directory')
     parser.add_argument('--config', type=str, default=None, help='Training config file path')
-    parser.add_argument('--visualize_dir', type=str, default=None, help='Visualization output directory')
+    parser.add_argument('--visflag', action='store_true', help='Enable visualization to logs/visualize_images')
+    
     args = parser.parse_args()
     
     config = Config(config_path=args.config)
@@ -227,12 +232,22 @@ def main():
     if not os.path.exists(webdataset_dir):
         raise ValueError(f"WebDataset directory not found: {webdataset_dir}")
     
+    # 可視化ディレクトリの設定
+    visualize_dir = None
+    if args.visflag:
+        visualize_dir = os.path.join(config.package_dir, 'logs', 'visualize_images')
+        os.makedirs(visualize_dir, exist_ok=True)
+        print(f"Visualization enabled: {visualize_dir}")
+    
     dataset = DatasetLoader(
         dataset_dir=webdataset_dir,
         input_size=(48, 64),
-        visualize_dir=args.visualize_dir,
+        visualize_dir=visualize_dir,
         shift_signs=config.shift_signs if config.enable_horizontal_shift else [0.0],
-        vel_offset=config.vel_offset
+        vel_offset=config.vel_offset,
+        projection_signs=config.projection_signs if config.enable_projection_transform else [0.0],
+        projection_offset=config.projection_offset,
+        enable_random_sampling=args.visflag
     )
     
     detected_height, detected_width = dataset.input_size
@@ -244,9 +259,16 @@ def main():
     if config.enable_horizontal_shift:
         print(f"  Horizontal shift options: {config.shift_signs}")
         print(f"  Angular velocity offset: {config.vel_offset}")
-        print(f"  Random augmentation applied per sample")
+        print(f"  Horizontal shift augmentation enabled")
     else:
         print(f"  Horizontal shift augmentation: disabled")
+    
+    if config.enable_projection_transform:
+        print(f"  Projection transform options: {config.projection_signs}")
+        print(f"  Projection offset: {config.projection_offset}")
+        print(f"  Projection transform augmentation enabled")
+    else:
+        print(f"  Projection transform augmentation: disabled")
     
     trainer = Trainer(config, dataset)
     trainer.train()

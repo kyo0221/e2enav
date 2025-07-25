@@ -7,18 +7,22 @@ import json
 import webdataset as wds
 from io import BytesIO
 import random
+from .dataset_augment import DatasetAugmenter
 
 class DatasetLoader(IterableDataset):
     def __init__(self, dataset_dir, input_size=None, visualize_dir=None, 
-                 shift_signs=None, vel_offset=0.2, shuffle_buffer_size=None):
+                 shift_signs=None, vel_offset=0.2, shuffle_buffer_size=None,
+                 projection_signs=None, projection_offset=0.2, enable_random_sampling=False):
         self.dataset_dir = dataset_dir
         self.visualize_dir = visualize_dir
+        self.enable_random_sampling = enable_random_sampling
         
-        if shift_signs is None:
-            self.shift_signs = [-1.0, 0.0, 1.0]
-        else:
-            self.shift_signs = shift_signs
-        self.vel_offset = vel_offset
+        self.augmenter = DatasetAugmenter(
+            shift_signs=shift_signs,
+            vel_offset=vel_offset,
+            projection_signs=projection_signs,
+            projection_offset=projection_offset
+        )
         
         self.input_size = self._determine_input_size(input_size)
         
@@ -41,6 +45,9 @@ class DatasetLoader(IterableDataset):
         
         if self.visualize_dir:
             os.makedirs(self.visualize_dir, exist_ok=True)
+            
+        if self.enable_random_sampling and self.visualize_dir:
+            self.sample_indices = set(random.sample(range(self.samples_count), min(100, self.samples_count)))
             
         self._sample_counter = 0
     
@@ -106,38 +113,27 @@ class DatasetLoader(IterableDataset):
                 return stats['total_samples']
         return 1000
     
-    def _apply_horizontal_shift(self, img, shift_sign):
-
-        if shift_sign != 0.0:
-            h, w = img.shape[:2]
-            shift = int(shift_sign * w * 0.1)
-            
-            trans_mat = np.array([[1, 0, shift], [0, 1, 0]], dtype=np.float32)
-            img = cv2.warpAffine(img, trans_mat, (w, h), 
-                               borderMode=cv2.BORDER_CONSTANT, 
-                               borderValue=(0, 0, 0))
-        return img
     
     def __iter__(self):
         dataset = self._create_webdataset()
         
         for img_array, angle_info, metadata_info in dataset:
-            shift_sign = random.choice(self.shift_signs)
-            
             img_uint8 = cv2.resize(img_array, self.input_size[::-1])
             angle = float(angle_info['angle'])
             
-            img_uint8 = self._apply_horizontal_shift(img_uint8, shift_sign)
-            adjusted_angle = angle - shift_sign * self.vel_offset
+            transformed_img, adjusted_angle, transform_type, transform_sign = self.augmenter.apply_augmentation(img_uint8, angle)
             
-            if self.visualize_dir and self._sample_counter < 100:
+            should_visualize = (self.visualize_dir and self.enable_random_sampling and 
+                              self._sample_counter in self.sample_indices)
+            
+            if should_visualize:
                 save_path = os.path.join(self.visualize_dir, 
-                                       f"{self._sample_counter:05d}_shift{shift_sign:.1f}_angle{adjusted_angle:.3f}.png")
-                cv2.imwrite(save_path, img_uint8)
+                                       f"{self._sample_counter:05d}_{transform_type}{transform_sign:.1f}_angle{adjusted_angle:.3f}.png")
+                cv2.imwrite(save_path, transformed_img)
             
             self._sample_counter += 1
             
-            img_tensor = torch.from_numpy(img_uint8).permute(2, 0, 1).float() / 255.0
+            img_tensor = torch.from_numpy(transformed_img).permute(2, 0, 1).float() / 255.0
             angle_tensor = torch.tensor([adjusted_angle], dtype=torch.float32)
             
             yield img_tensor, angle_tensor
