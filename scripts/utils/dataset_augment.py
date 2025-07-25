@@ -49,9 +49,9 @@ class DatasetAugmenter:
         shift = int(shift_sign * w * 0.1)
         
         trans_mat = np.array([[1, 0, shift], [0, 1, 0]], dtype=np.float32)
-        img = cv2.warpAffine(img, trans_mat, (w, h), 
-                           borderMode=cv2.BORDER_CONSTANT, 
-                           borderValue=(0, 0, 0))
+        img = cv2.warpAffine(img, trans_mat, (w, h),
+                             borderMode=cv2.BORDER_CONSTANT,
+                             borderValue=(0, 0, 0))
         return img
     
     def _apply_projection_transform(self, img, projection_sign):
@@ -87,11 +87,48 @@ class DatasetAugmenter:
         K_inv = np.linalg.inv(K)
         H = K @ R @ K_inv
         
-        warped = cv2.warpPerspective(img, H, (w, h), 
-                                   borderMode=cv2.BORDER_CONSTANT, 
-                                   borderValue=(0, 0, 0))
+        corners = np.array([
+            [0, 0],
+            [w, 0],
+            [w, h],
+            [0, h]
+        ], dtype=np.float32)
+
+        corners_h = cv2.perspectiveTransform(corners[None, :, :], H)[0]
+
+        x_coords = corners_h[:, 0]
+        y_coords = corners_h[:, 1]
+
+        x_min = max(0, np.ceil(x_coords.min()).astype(int))
+        x_max = min(w, np.floor(x_coords.max()).astype(int))
+        y_min = max(0, np.ceil(y_coords.min()).astype(int))
+        y_max = min(h, np.floor(y_coords.max()).astype(int))
+
+        warped_full = cv2.warpPerspective(img, H, (w, h),
+                                        borderMode=cv2.BORDER_CONSTANT,
+                                        borderValue=(0, 0, 0))
+
+        # パディングが発生しない範囲でクロップ
+        cropped = warped_full[y_min:y_max, x_min:x_max]
         
-        return warped
+        return cropped
+    
+    def _apply_center_crop(self, img, target_aspect_ratio):
+        h, w = img.shape[:2]
+        current_aspect_ratio = w / h
+        
+        if current_aspect_ratio > target_aspect_ratio:
+            new_w = int(h * target_aspect_ratio)
+            new_h = h
+        else:
+            new_w = w
+            new_h = int(w / target_aspect_ratio)
+
+        start_x = (w - new_w) // 2
+        start_y = (h - new_h) // 2
+        cropped = img[start_y:start_y+new_h, start_x:start_x+new_w]
+        
+        return cropped
     
     def get_augmentation_info(self):
         return {

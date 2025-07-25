@@ -118,22 +118,31 @@ class DatasetLoader(IterableDataset):
         dataset = self._create_webdataset()
         
         for img_array, angle_info, metadata_info in dataset:
-            img_uint8 = cv2.resize(img_array, self.input_size[::-1])
             angle = float(angle_info['angle'])
             
-            transformed_img, adjusted_angle, transform_type, transform_sign = self.augmenter.apply_augmentation(img_uint8, angle)
+            (transformed_img, adjusted_angle, transform_type,
+             transform_sign) = self.augmenter.apply_augmentation(img_array, angle)
             
-            should_visualize = (self.visualize_dir and self.enable_random_sampling and 
-                              self._sample_counter in self.sample_indices)
+            target_aspect_ratio = self.input_size[1] / self.input_size[0]
+            cropped_img = self.augmenter._apply_center_crop(
+                transformed_img, target_aspect_ratio)
+            
+            img_uint8 = cv2.resize(cropped_img, self.input_size[::-1])
+            
+            should_visualize = (self.visualize_dir and
+                                self.enable_random_sampling and
+                                self._sample_counter in self.sample_indices)
             
             if should_visualize:
-                save_path = os.path.join(self.visualize_dir, 
-                                       f"{self._sample_counter:05d}_{transform_type}{transform_sign:.1f}_angle{adjusted_angle:.3f}.png")
-                cv2.imwrite(save_path, transformed_img)
+                filename = (f"{self._sample_counter:05d}_{transform_type}"
+                           f"{transform_sign:.1f}_angle{adjusted_angle:.3f}.png")
+                save_path = os.path.join(self.visualize_dir, filename)
+                cv2.imwrite(save_path, img_uint8)
             
             self._sample_counter += 1
             
-            img_tensor = torch.from_numpy(transformed_img).permute(2, 0, 1).float() / 255.0
+            img_tensor = (torch.from_numpy(img_uint8)
+                          .permute(2, 0, 1).float() / 255.0)
             angle_tensor = torch.tensor([adjusted_angle], dtype=torch.float32)
             
             yield img_tensor, angle_tensor
