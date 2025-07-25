@@ -1,0 +1,11 @@
+simple_data_collector:
+  ros__parameters:
+    image_topic: "/image_raw"
+    cmd_vel_topic: "/cmd_vel"
+    joy_topic: "/joy"
+    interval_ms: 100                    # データ収集間隔
+    log_name: "simple_dataset"          # データセット名
+    max_data_count: 500000               # 最大収集サンプル数
+    samples_per_shard: 100             # シャードあたりのサンプル数
+    enable_compression: true            # 圧縮を有効にする
+    joy_button_toggle: 1                # データ収集モードon/offボタン（PSコンのAボタン）

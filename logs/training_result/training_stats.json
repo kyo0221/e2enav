@@ -1,0 +1,17 @@
+{
+  "final_loss": 0.0013758135683019646,
+  "min_loss": 0.0011531398922670633,
+  "total_epochs": 150,
+  "total_batches": 5372,
+  "model_path": "/home/kyo/imitation_ws/src/e2enav/config/models/simple_imitation_model.pt",
+  "config": {
+    "batch_size": 32,
+    "learning_rate": 0.0002,
+    "epochs": 150,
+    "image_size": [
+      48,
+      64
+    ],
+    "model_type": "Network"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "total_samples": 1102,
+  "total_shards": 1,
+  "samples_per_shard": 1000,
+  "compression_enabled": true,
+  "save_format": "numpy_uint8",
+  "dataset_directory": "/home/kyo/imitation_ws/src/e2enav/config/dataset/webdataset",
+  "image_size": [
+    300,
+    480
+  ],
+  "original_image_size": true,
+  "collection_frequency_hz": 10.0,
+  "max_data_count": 5000000,
+  "image_dtype": "uint8"
+}

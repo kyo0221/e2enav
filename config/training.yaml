@@ -1,0 +1,11 @@
+train:
+  batch_size: 32
+  epochs: 150
+  learning_rate: 0.0002
+  shuffle: true
+  model_filename: "simple_imitation_model.pt"
+  enable_horizontal_shift: true
+  shift_signs: [-0.5, 0.0, 0.5]
+  vel_offset: 0.4
+  save_intermediate_models: true
+  tensorboard_logging: true
