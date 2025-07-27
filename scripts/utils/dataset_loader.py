@@ -12,16 +12,14 @@ from .dataset_augment import DatasetAugmenter
 class DatasetLoader(IterableDataset):
     def __init__(self, dataset_dir, input_size=None, visualize_dir=None, 
                  shift_signs=None, vel_offset=0.2, shuffle_buffer_size=None,
-                 projection_signs=None, projection_offset=0.2, enable_random_sampling=False):
+                 enable_random_sampling=False):
         self.dataset_dir = dataset_dir
         self.visualize_dir = visualize_dir
         self.enable_random_sampling = enable_random_sampling
         
         self.augmenter = DatasetAugmenter(
             shift_signs=shift_signs,
-            vel_offset=vel_offset,
-            projection_signs=projection_signs,
-            projection_offset=projection_offset
+            vel_offset=vel_offset
         )
         
         self.input_size = self._determine_input_size(input_size)
@@ -123,16 +121,8 @@ class DatasetLoader(IterableDataset):
             (transformed_img, adjusted_angle, transform_type,
              transform_sign) = self.augmenter.apply_augmentation(img_array, angle, self.input_size)
             
-            # 新しい横シフト処理：affine変換は既に224x224にクロップ済み
-            if transform_type == 'affine':
-                # 既に目標サイズにクロップ済みのため、そのまま使用
-                img_uint8 = transformed_img
-            else:
-                # projectionやnoneの場合は既存処理を継続
-                target_aspect_ratio = self.input_size[1] / self.input_size[0]
-                cropped_img = self.augmenter._apply_center_crop(
-                    transformed_img, target_aspect_ratio)
-                img_uint8 = cv2.resize(cropped_img, self.input_size[::-1])
+            # アフィン変換は既に目標サイズにクロップ済み
+            img_uint8 = transformed_img
             
             should_visualize = (self.visualize_dir and
                                 self.enable_random_sampling and

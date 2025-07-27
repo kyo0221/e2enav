@@ -51,13 +51,8 @@ class Config:
         self.image_width = config['image_width']
         self.model_filename = config['model_filename']
         
-        self.enable_horizontal_shift = config.get('enable_horizontal_shift', True)
         self.shift_signs = config.get('shift_signs', [-2.0, -1.0, 0.0, 1.0, 2.0])
         self.vel_offset = config.get('vel_offset', 0.2)
-        
-        self.enable_projection_transform = config.get('enable_projection_transform', True)
-        self.projection_signs = config.get('projection_signs', [0.0])
-        self.projection_offset = config.get('projection_offset', 0.2)
         
         # ResNet18 settings
         self.use_pretrained_resnet = config.get('use_pretrained_resnet', True)
@@ -256,10 +251,8 @@ def main():
         dataset_dir=webdataset_dir,
         input_size=(224, 224),
         visualize_dir=visualize_dir,
-        shift_signs=config.shift_signs if config.enable_horizontal_shift else [0.0],
+        shift_signs=config.shift_signs,
         vel_offset=config.vel_offset,
-        projection_signs=config.projection_signs if config.enable_projection_transform else [0.0],
-        projection_offset=config.projection_offset,
         enable_random_sampling=args.visflag
     )
     
@@ -269,19 +262,9 @@ def main():
     print(f"Updated config with detected image size: {detected_width}x{detected_height}")
     
     print(f"Dataset loaded: {dataset.samples_count} samples")
-    if config.enable_horizontal_shift:
-        print(f"  Horizontal shift options: {config.shift_signs}")
-        print(f"  Angular velocity offset: {config.vel_offset}")
-        print(f"  Horizontal shift augmentation enabled")
-    else:
-        print(f"  Horizontal shift augmentation: disabled")
-    
-    if config.enable_projection_transform:
-        print(f"  Projection transform options: {config.projection_signs}")
-        print(f"  Projection offset: {config.projection_offset}")
-        print(f"  Projection transform augmentation enabled")
-    else:
-        print(f"  Projection transform augmentation: disabled")
+    print(f"  Horizontal shift options: {config.shift_signs}")
+    print(f"  Angular velocity offset: {config.vel_offset}")
+    print(f"  Horizontal shift augmentation enabled")
     
     trainer = Trainer(config, dataset)
     trainer.train()

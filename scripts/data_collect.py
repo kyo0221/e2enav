@@ -72,7 +72,7 @@ class DataCollector(Node):
         self.get_logger().info(f"DataCollector initialized")
         self.get_logger().info(f"Saving webdataset to: {self.webdataset_dir}")
         self.get_logger().info(f"Collection interval: {self.interval_ms} ms ({1000/self.interval_ms:.1f} Hz)")
-        self.get_logger().info(f"Joy control - Toggle button: {self.joy_button_toggle} (PSコンのXボタン)")
+        self.get_logger().info(f"Joy control - Toggle button: {self.joy_button_toggle}")
         self.get_logger().info(f"Image size: Auto-detect from ROS image topic")
         self.get_logger().info(f"Data collection: {'ACTIVE' if self.save_flag else 'INACTIVE'}")
     

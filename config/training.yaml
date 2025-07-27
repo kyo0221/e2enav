@@ -6,10 +6,7 @@ train:
   model_filename: "simple_imitation_model.pt"
   shift_signs: [-2.0, -1.0, 0.0, 1.0, 2.0]
   vel_offset: 0.2
-  projection_signs: []  # 射影変換
-  projection_offset: 0.2
   save_intermediate_models: true
   tensorboard_logging: true
-  # ResNet18 settings
-  use_pretrained_resnet: false    # ImageNet事前学習済みモデルを使用
+  use_pretrained_resnet: true    # ImageNet事前学習済みモデルを使用
   freeze_resnet_backbone: false # ResNetバックボーンを凍結するか
