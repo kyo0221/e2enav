@@ -105,7 +105,6 @@ void SimpleInferenceNode::autonomousFlagCallback(const std_msgs::msg::Bool::Shar
 void SimpleInferenceNode::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
 {
   try {
-    // BGRA8画像をpassthrough encodingで受信
     cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, "bgra8");
     
     // BGRA → RGB変換（Aチャンネルを破棄）
@@ -122,19 +121,16 @@ void SimpleInferenceNode::imageCallback(const sensor_msgs::msg::Image::SharedPtr
 
 cv::Mat SimpleInferenceNode::preprocessImage(const cv::Mat& input_image, int target_height, int target_width)
 {
-  // 訓練時と同様の中央クロップ方式（shift_sign=0.0相当）
   int input_height = input_image.rows;
   int input_width = input_image.cols;
   
   cv::Mat processed;
   
-  // 元画像が目標サイズより大きい場合は中央クロップ
   if (input_width >= target_width && input_height >= target_height) {
     // 中央から切り出し位置を計算
     int x_start = (input_width - target_width) / 2;
     int y_start = (input_height - target_height) / 2;
     
-    // ROI（Region of Interest）でクロップ
     cv::Rect crop_rect(x_start, y_start, target_width, target_height);
     processed = input_image(crop_rect).clone();
     
