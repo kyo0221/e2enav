@@ -51,13 +51,12 @@ class Config:
         self.image_width = config['image_width']
         self.model_filename = config['model_filename']
         
-        self.enable_horizontal_shift = config.get('enable_horizontal_shift', True)
         self.shift_signs = config.get('shift_signs', [-2.0, -1.0, 0.0, 1.0, 2.0])
         self.vel_offset = config.get('vel_offset', 0.2)
         
-        self.enable_projection_transform = config.get('enable_projection_transform', False)
-        self.projection_signs = config.get('projection_signs', [0.0])
-        self.projection_offset = config.get('projection_offset', 0.2)
+        # ResNet18 settings
+        self.use_pretrained_resnet = config.get('use_pretrained_resnet', True)
+        self.freeze_resnet_backbone = config.get('freeze_resnet_backbone', False)
         
         print(f"Training configuration loaded from: {config_path}")
         print(f"Results will be saved to: {self.result_dir}")
@@ -74,11 +73,16 @@ class Trainer:
         self.loader = DataLoader(
             dataset, 
             batch_size=config.batch_size, 
-            num_workers=os.cpu_count() // 12,
+            # num_workers=os.cpu_count() // 2,
+            num_workers=0,
             pin_memory=True
         )
         
-        self.model = Network(input_channels=3).to(self.device)
+        self.model = Network(
+            input_channels=3,
+            use_pretrained=config.use_pretrained_resnet,
+            freeze_backbone=config.freeze_resnet_backbone
+        ).to(self.device)
         
         self.criterion = nn.MSELoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=config.learning_rate)
@@ -92,6 +96,8 @@ class Trainer:
         print(f"  Batch size: {config.batch_size}")
         print(f"  Learning rate: {config.learning_rate}")
         print(f"  Epochs: {config.epochs}")
+        print(f"  ResNet18 pretrained: {config.use_pretrained_resnet}")
+        print(f"  ResNet18 backbone frozen: {config.freeze_resnet_backbone}")
     
     def train(self):
         scaler = GradScaler()
@@ -205,7 +211,9 @@ class Trainer:
                 "learning_rate": self.config.learning_rate,
                 "epochs": self.config.epochs,
                 "image_size": [self.config.image_height, self.config.image_width],
-                "model_type": "Network"
+                "model_type": "ResNet18_Regression",
+                "use_pretrained": self.config.use_pretrained_resnet,
+                "freeze_backbone": self.config.freeze_resnet_backbone
             }
         }
         
@@ -241,12 +249,10 @@ def main():
     
     dataset = DatasetLoader(
         dataset_dir=webdataset_dir,
-        input_size=(48, 64),
+        input_size=(224, 224),
         visualize_dir=visualize_dir,
-        shift_signs=config.shift_signs if config.enable_horizontal_shift else [0.0],
+        shift_signs=config.shift_signs,
         vel_offset=config.vel_offset,
-        projection_signs=config.projection_signs if config.enable_projection_transform else [0.0],
-        projection_offset=config.projection_offset,
         enable_random_sampling=args.visflag
     )
     
@@ -256,19 +262,9 @@ def main():
     print(f"Updated config with detected image size: {detected_width}x{detected_height}")
     
     print(f"Dataset loaded: {dataset.samples_count} samples")
-    if config.enable_horizontal_shift:
-        print(f"  Horizontal shift options: {config.shift_signs}")
-        print(f"  Angular velocity offset: {config.vel_offset}")
-        print(f"  Horizontal shift augmentation enabled")
-    else:
-        print(f"  Horizontal shift augmentation: disabled")
-    
-    if config.enable_projection_transform:
-        print(f"  Projection transform options: {config.projection_signs}")
-        print(f"  Projection offset: {config.projection_offset}")
-        print(f"  Projection transform augmentation enabled")
-    else:
-        print(f"  Projection transform augmentation: disabled")
+    print(f"  Horizontal shift options: {config.shift_signs}")
+    print(f"  Angular velocity offset: {config.vel_offset}")
+    print(f"  Horizontal shift augmentation enabled")
     
     trainer = Trainer(config, dataset)
     trainer.train()

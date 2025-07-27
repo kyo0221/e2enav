@@ -4,9 +4,9 @@ train:
   learning_rate: 0.0002
   shuffle: true
   model_filename: "simple_imitation_model.pt"
-  shift_signs: [-1.0, -0.5, 0.0, 0.5, 1.0] # アフィン変換
-  vel_offset: 0.4
-  projection_signs: [-1.0, -0.5, 0.0, 0.5, 1.0]  # 射影変換
-  projection_offset: 0.4
+  shift_signs: [-2.0, -1.0, 0.0, 1.0, 2.0]
+  vel_offset: 0.2
   save_intermediate_models: true
   tensorboard_logging: true
+  use_pretrained_resnet: true    # ImageNet事前学習済みモデルを使用
+  freeze_resnet_backbone: false # ResNetバックボーンを凍結するか

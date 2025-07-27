@@ -1,9 +1,9 @@
 simple_inference_node:
   ros__parameters:
     interval_ms: 50
-    model_name: "simple_imitation_model.pt"
+    model_name: "formula_simple_imitation_model.pt"
     max_linear_vel: 3.0
     max_angular_vel: 1.57
-    image_width: 64
-    image_height: 48
+    image_width: 224
+    image_height: 224
     visualize_flag: true

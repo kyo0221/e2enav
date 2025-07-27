@@ -5,112 +5,42 @@ import random
 
 class DatasetAugmenter:
     
-    def __init__(self, shift_signs=None, vel_offset=0.2, 
-                 projection_signs=None, projection_offset=0.2):
-        self.shift_signs = shift_signs if shift_signs else []
+    def __init__(self, shift_signs=None, vel_offset=0.2):
+        self.shift_signs = shift_signs if shift_signs else [-2.0, -1.0, 0.0, 1.0, 2.0]
         self.vel_offset = vel_offset
-        self.projection_signs = projection_signs if projection_signs else []
-        self.projection_offset = projection_offset
-        
-        self.transform_options = []
-        if self.projection_signs:
-            for sign in self.projection_signs:
-                self.transform_options.append(('projection', sign))
-        if self.shift_signs:
-            for sign in self.shift_signs:
-                self.transform_options.append(('affine', sign))
-        
-        if not self.transform_options:
-            self.transform_options.append(('none', 0.0))
     
-    def apply_augmentation(self, img, angle):
-        if not self.transform_options:
-            return img, angle, 'none', 0.0
+    def apply_augmentation(self, img, angle, target_size=(224, 224)):
+        transform_sign = random.choice(self.shift_signs)
+        transformed_img = self._apply_horizontal_crop(img, transform_sign, target_size)
+        adjusted_angle = angle + transform_sign * self.vel_offset
         
-        transform_type, transform_sign = random.choice(self.transform_options)
-        
-        if transform_type == 'affine':
-            transformed_img = self._apply_horizontal_shift(img, transform_sign)
-            adjusted_angle = angle - transform_sign * self.vel_offset
-        elif transform_type == 'projection':
-            transformed_img = self._apply_projection_transform(img, transform_sign)
-            adjusted_angle = angle + transform_sign * self.projection_offset
-        else:
-            transformed_img = img
-            adjusted_angle = angle
-        
-        return transformed_img, adjusted_angle, transform_type, transform_sign
+        return transformed_img, adjusted_angle, 'affine', transform_sign
     
-    def _apply_horizontal_shift(self, img, shift_sign):
-        if shift_sign == 0.0:
-            return img
-            
+    def _apply_horizontal_crop(self, img, shift_sign, target_size=(224, 224)):
         h, w = img.shape[:2]
-        shift = int(shift_sign * w * 0.1)
+        target_h, target_w = target_size
         
-        trans_mat = np.array([[1, 0, shift], [0, 1, 0]], dtype=np.float32)
-        img = cv2.warpAffine(img, trans_mat, (w, h), 
-                           borderMode=cv2.BORDER_CONSTANT, 
-                           borderValue=(0, 0, 0))
-        return img
-    
-    def _apply_projection_transform(self, img, projection_sign):
-        if projection_sign == 0.0:
-            return img
-            
-        h, w = img.shape[:2]
+        max_x_shift = w - target_w
+        max_y_shift = h - target_h
+
+        center_x = max_x_shift // 2  # 128
+        x_offset = int((shift_sign / 2.0) * center_x)
+        x_start = center_x + x_offset
         
-        focal_length_mm = 2.2
-        pixel_size_um = 3.0
-        focal_length_px = (focal_length_mm * 1000) / pixel_size_um
+        y_start = max_y_shift // 2  # 38
         
-        scale_x = w / 1920.0
-        scale_y = h / 1200.0
-        fx = focal_length_px * scale_x
-        fy = focal_length_px * scale_y
+        # 範囲チェック
+        x_start = max(0, min(x_start, max_x_shift))
+        y_start = max(0, min(y_start, max_y_shift))
         
-        K = np.array([
-            [fx, 0,  w / 2],
-            [0,  fy, h / 2], 
-            [0,  0,      1]
-        ], dtype=np.float32)
+        cropped = img[y_start:y_start+target_h, x_start:x_start+target_w]
         
-        angle_deg = projection_sign * 5.0
-        angle_rad = np.deg2rad(angle_deg)
+        return cropped
         
-        R = np.array([
-            [np.cos(angle_rad), 0, np.sin(angle_rad)],
-            [0,                 1, 0],
-            [-np.sin(angle_rad), 0, np.cos(angle_rad)]
-        ], dtype=np.float32)
-        
-        K_inv = np.linalg.inv(K)
-        H = K @ R @ K_inv
-        
-        warped = cv2.warpPerspective(img, H, (w, h), 
-                                   borderMode=cv2.BORDER_CONSTANT, 
-                                   borderValue=(0, 0, 0))
-        
-        mask = np.any(warped != 0, axis=2)
-        coords = np.column_stack(np.where(mask))
-        
-        if len(coords) == 0:
-            return img
-        
-        y_min, x_min = coords.min(axis=0)
-        y_max, x_max = coords.max(axis=0)
-        
-        valid_region = warped[y_min:y_max+1, x_min:x_max+1]
-        
-        return cv2.resize(valid_region, (w, h))
     
     def get_augmentation_info(self):
         return {
             'shift_signs': self.shift_signs,
             'vel_offset': self.vel_offset,
-            'projection_signs': self.projection_signs,
-            'projection_offset': self.projection_offset,
-            'total_transform_options': len(self.transform_options),
-            'has_affine': bool(self.shift_signs),
-            'has_projection': bool(self.projection_signs)
+            'has_affine': True
         }

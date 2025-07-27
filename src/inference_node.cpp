@@ -105,7 +105,6 @@ void SimpleInferenceNode::autonomousFlagCallback(const std_msgs::msg::Bool::Shar
 void SimpleInferenceNode::imageCallback(const sensor_msgs::msg::Image::SharedPtr msg)
 {
   try {
-    // BGRA8画像をpassthrough encodingで受信
     cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, "bgra8");
     
     // BGRA → RGB変換（Aチャンネルを破棄）
@@ -122,10 +121,30 @@ void SimpleInferenceNode::imageCallback(const sensor_msgs::msg::Image::SharedPtr
 
 cv::Mat SimpleInferenceNode::preprocessImage(const cv::Mat& input_image, int target_height, int target_width)
 {
-  cv::Mat resized;
+  int input_height = input_image.rows;
+  int input_width = input_image.cols;
   
-  cv::resize(input_image, resized, cv::Size(target_width, target_height));
-  return resized;
+  cv::Mat processed;
+  
+  if (input_width >= target_width && input_height >= target_height) {
+    // 中央から切り出し位置を計算
+    int x_start = (input_width - target_width) / 2;
+    int y_start = (input_height - target_height) / 2;
+    
+    cv::Rect crop_rect(x_start, y_start, target_width, target_height);
+    processed = input_image(crop_rect).clone();
+    
+    RCLCPP_DEBUG(this->get_logger(), "Center crop: %dx%d -> %dx%d (crop from %d,%d)", 
+                 input_width, input_height, target_width, target_height, x_start, y_start);
+  } else {
+    // 小さい画像の場合は従来通りリサイズ
+    cv::resize(input_image, processed, cv::Size(target_width, target_height));
+    
+    RCLCPP_DEBUG(this->get_logger(), "Resize: %dx%d -> %dx%d", 
+                 input_width, input_height, target_width, target_height);
+  }
+  
+  return processed;
 }
 
 void SimpleInferenceNode::performInference()
