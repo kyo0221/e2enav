@@ -59,6 +59,10 @@ class Config:
         self.projection_signs = config.get('projection_signs', [0.0])
         self.projection_offset = config.get('projection_offset', 0.2)
         
+        # ResNet18 settings
+        self.use_pretrained_resnet = config.get('use_pretrained_resnet', True)
+        self.freeze_resnet_backbone = config.get('freeze_resnet_backbone', False)
+        
         print(f"Training configuration loaded from: {config_path}")
         print(f"Results will be saved to: {self.result_dir}")
         print(f"Models will be saved to: {self.model_dir}")
@@ -79,7 +83,11 @@ class Trainer:
             pin_memory=True
         )
         
-        self.model = Network(input_channels=3).to(self.device)
+        self.model = Network(
+            input_channels=3,
+            use_pretrained=config.use_pretrained_resnet,
+            freeze_backbone=config.freeze_resnet_backbone
+        ).to(self.device)
         
         self.criterion = nn.MSELoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=config.learning_rate)
@@ -93,6 +101,8 @@ class Trainer:
         print(f"  Batch size: {config.batch_size}")
         print(f"  Learning rate: {config.learning_rate}")
         print(f"  Epochs: {config.epochs}")
+        print(f"  ResNet18 pretrained: {config.use_pretrained_resnet}")
+        print(f"  ResNet18 backbone frozen: {config.freeze_resnet_backbone}")
     
     def train(self):
         scaler = GradScaler()
@@ -206,7 +216,9 @@ class Trainer:
                 "learning_rate": self.config.learning_rate,
                 "epochs": self.config.epochs,
                 "image_size": [self.config.image_height, self.config.image_width],
-                "model_type": "Network"
+                "model_type": "ResNet18_Regression",
+                "use_pretrained": self.config.use_pretrained_resnet,
+                "freeze_backbone": self.config.freeze_resnet_backbone
             }
         }
         
@@ -242,7 +254,7 @@ def main():
     
     dataset = DatasetLoader(
         dataset_dir=webdataset_dir,
-        input_size=(66, 200),
+        input_size=(224, 224),
         visualize_dir=visualize_dir,
         shift_signs=config.shift_signs if config.enable_horizontal_shift else [0.0],
         vel_offset=config.vel_offset,

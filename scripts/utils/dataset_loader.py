@@ -121,13 +121,18 @@ class DatasetLoader(IterableDataset):
             angle = float(angle_info['angle'])
             
             (transformed_img, adjusted_angle, transform_type,
-             transform_sign) = self.augmenter.apply_augmentation(img_array, angle)
+             transform_sign) = self.augmenter.apply_augmentation(img_array, angle, self.input_size)
             
-            target_aspect_ratio = self.input_size[1] / self.input_size[0]
-            cropped_img = self.augmenter._apply_center_crop(
-                transformed_img, target_aspect_ratio)
-            
-            img_uint8 = cv2.resize(cropped_img, self.input_size[::-1])
+            # 新しい横シフト処理：affine変換は既に224x224にクロップ済み
+            if transform_type == 'affine':
+                # 既に目標サイズにクロップ済みのため、そのまま使用
+                img_uint8 = transformed_img
+            else:
+                # projectionやnoneの場合は既存処理を継続
+                target_aspect_ratio = self.input_size[1] / self.input_size[0]
+                cropped_img = self.augmenter._apply_center_crop(
+                    transformed_img, target_aspect_ratio)
+                img_uint8 = cv2.resize(cropped_img, self.input_size[::-1])
             
             should_visualize = (self.visualize_dir and
                                 self.enable_random_sampling and

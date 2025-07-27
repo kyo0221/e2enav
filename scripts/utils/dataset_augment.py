@@ -23,36 +23,54 @@ class DatasetAugmenter:
         if not self.transform_options:
             self.transform_options.append(('none', 0.0))
     
-    def apply_augmentation(self, img, angle):
+    def apply_augmentation(self, img, angle, target_size=None):
         if not self.transform_options:
             return img, angle, 'none', 0.0
         
         transform_type, transform_sign = random.choice(self.transform_options)
         
         if transform_type == 'affine':
-            transformed_img = self._apply_horizontal_shift(img, transform_sign)
-            adjusted_angle = angle - transform_sign * self.vel_offset
+            if target_size is not None:
+                transformed_img = self._apply_horizontal_crop(img, transform_sign, target_size)
+            else:
+                transformed_img = self._apply_horizontal_crop(img, transform_sign)
+            adjusted_angle = angle + transform_sign * self.vel_offset
         elif transform_type == 'projection':
             transformed_img = self._apply_projection_transform(img, transform_sign)
-            adjusted_angle = angle + transform_sign * self.projection_offset
+            adjusted_angle = angle - transform_sign * self.projection_offset
         else:
             transformed_img = img
             adjusted_angle = angle
         
         return transformed_img, adjusted_angle, transform_type, transform_sign
     
-    def _apply_horizontal_shift(self, img, shift_sign):
-        if shift_sign == 0.0:
-            return img
-            
+    def _apply_horizontal_crop(self, img, shift_sign, target_size=(224, 224)):
         h, w = img.shape[:2]
-        shift = int(shift_sign * w * 0.1)
+        target_h, target_w = target_size
         
-        trans_mat = np.array([[1, 0, shift], [0, 1, 0]], dtype=np.float32)
-        img = cv2.warpAffine(img, trans_mat, (w, h),
-                             borderMode=cv2.BORDER_CONSTANT,
-                             borderValue=(0, 0, 0))
-        return img
+        # 切り出し可能範囲の計算
+        max_x_shift = w - target_w
+        max_y_shift = h - target_h
+
+        center_x = max_x_shift // 2  # 128
+        x_offset = int((shift_sign / 2.0) * center_x)  # -128 to +128
+        x_start = center_x + x_offset  # 0 to 256
+        
+        # 縦方向は常に中央から切り出し
+        y_start = max_y_shift // 2  # 38
+        
+        # 範囲チェック
+        x_start = max(0, min(x_start, max_x_shift))
+        y_start = max(0, min(y_start, max_y_shift))
+        
+        # 直接クロップ（パディングなし）
+        cropped = img[y_start:y_start+target_h, x_start:x_start+target_w]
+        
+        return cropped
+        
+    def _apply_horizontal_shift(self, img, shift_sign):
+        """後方互換性のため残存（非推奨）"""
+        return self._apply_horizontal_crop(img, shift_sign)
     
     def _apply_projection_transform(self, img, projection_sign):
         if projection_sign == 0.0:
