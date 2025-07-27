@@ -17,15 +17,12 @@ class Network(nn.Module):
         else:
             resnet18 = models.resnet18(weights=None)
         
-        # Remove the final classification layer
         self.backbone = nn.Sequential(*list(resnet18.children())[:-1])
         
-        # Freeze backbone if specified
         if freeze_backbone:
             for param in self.backbone.parameters():
                 param.requires_grad = False
         
-        # Practical regression head for E2E driving (inspired by NVIDIA PilotNet)
         self.flatten = nn.Flatten()
         self.fc1 = nn.Linear(512, 100)
         self.fc2 = nn.Linear(100, 50) 
@@ -35,7 +32,6 @@ class Network(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.dropout = nn.Dropout(0.2)
         
-        # Initialize FC layers for regression
         torch.nn.init.xavier_normal_(self.fc1.weight)
         torch.nn.init.xavier_normal_(self.fc2.weight)
         torch.nn.init.xavier_normal_(self.fc3.weight)
@@ -58,9 +54,9 @@ class Network(nn.Module):
         )
     
     def forward(self, x):
-        x = self.backbone(x)      # ResNet18 feature extraction + avg pool
-        x = self.flatten(x)       # Flatten to 512-dim vector  
-        x = self.regression_head(x)  # 4-layer MLP: 512→100→50→10→1
+        x = self.backbone(x)
+        x = self.flatten(x)  
+        x = self.regression_head(x)
         return x
     
     def save_torchscript(self, model_path, input_size=(3, 224, 224)):
@@ -83,22 +79,16 @@ class Network(nn.Module):
     
     @staticmethod
     def preprocess_image(image, target_size=(224, 224)):
-        """
-        推論時の画像前処理：中央クロップ方式
-        訓練時と同様の480x300→224x224クロップを実行
-        """
+
         if isinstance(image, np.ndarray):
             h, w = image.shape[:2]
             target_h, target_w = target_size
             
-            # 元画像が想定サイズ（480x300周辺）の場合は中央クロップ
             if w >= target_w and h >= target_h:
-                # 中央から切り出し（shift_sign=0.0相当）
                 x_start = (w - target_w) // 2
                 y_start = (h - target_h) // 2
                 cropped = image[y_start:y_start+target_h, x_start:x_start+target_w]
             else:
-                # 小さい画像の場合は従来通りリサイズ
                 cropped = cv2.resize(image, target_size)
             
             normalized = cropped.astype(np.float32) / 255.0
@@ -148,7 +138,6 @@ if __name__ == "__main__":
         print(f"  Backbone trainable: {backbone_trainable}")
         print(f"  Head trainable: {head_trainable}")
     
-    # Test TorchScript save/load
     print(f"\n💾 Testing TorchScript save/load...")
     model = create_model()
     model.eval()

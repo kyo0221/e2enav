@@ -48,28 +48,24 @@ class DatasetAugmenter:
         h, w = img.shape[:2]
         target_h, target_w = target_size
         
-        # 切り出し可能範囲の計算
         max_x_shift = w - target_w
         max_y_shift = h - target_h
 
         center_x = max_x_shift // 2  # 128
         x_offset = int((shift_sign / 2.0) * center_x)  # -128 to +128
-        x_start = center_x + x_offset  # 0 to 256
+        x_start = center_x + x_offset
         
-        # 縦方向は常に中央から切り出し
         y_start = max_y_shift // 2  # 38
         
         # 範囲チェック
         x_start = max(0, min(x_start, max_x_shift))
         y_start = max(0, min(y_start, max_y_shift))
         
-        # 直接クロップ（パディングなし）
         cropped = img[y_start:y_start+target_h, x_start:x_start+target_w]
         
         return cropped
         
     def _apply_horizontal_shift(self, img, shift_sign):
-        """後方互換性のため残存（非推奨）"""
         return self._apply_horizontal_crop(img, shift_sign)
     
     def _apply_projection_transform(self, img, projection_sign):
