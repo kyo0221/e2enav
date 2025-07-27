@@ -74,7 +74,8 @@ class Trainer:
         self.loader = DataLoader(
             dataset, 
             batch_size=config.batch_size, 
-            num_workers=os.cpu_count() // 12,
+            # num_workers=os.cpu_count() // 2,
+            num_workers=0,
             pin_memory=True
         )
         
